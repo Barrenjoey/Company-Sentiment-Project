@@ -3,7 +3,11 @@ import bs4 as bs
 import datetime
 import re
 import sqlite3
-
+'''
+This is the scraper script that grabs the urls gathered by the crawler and then extracts
+the wanted content from each url. The data obtained is the sentiment, date, company and 
+price at post. The gathered data is then used to update the database.
+'''
 #Connecting to database and creating cursor
 conn = sqlite3.connect('Cobalt_Blue.db')
 c = conn.cursor()
@@ -31,6 +35,7 @@ scrape_list = select_urls()
 counter = 0
 sentiment = ""
 content = "content"
+price = 0
 for url in scrape_list[0:]:
 	url = url[0]
 	counter += 1
@@ -96,9 +101,12 @@ for url in scrape_list[0:]:
 	except Exception as e:
 		print("Error getting post date! " + str(e))
 		
-	# Data entry	
-	data_entry()	
-	
+	# Data entry
+	try:
+		data_entry()	
+	except Exception as e:	
+		print("Error - Data entry! " + str(e))
+		
 	# Resetting Variables
 	price = ''
 	sentiment = ''
