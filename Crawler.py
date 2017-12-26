@@ -2,7 +2,12 @@ import urllib.request
 import bs4 as bs
 import re
 import sqlite3
-
+'''
+This is the web crawler used to find the wanted urls on the hotcopper website. The crawler
+searches by company prefix, and automatically adds the next page of the forum to the url list
+if they havent already been crawled before. Crawled entries are imported at the start, and
+wanted urls will then be saved to a database, with the option of text file backups.
+'''
 #Connecting to database and creating cursor
 conn = sqlite3.connect('Cobalt_Blue.db')
 c = conn.cursor()
@@ -29,7 +34,7 @@ start_url = "https://hotcopper.com.au/asx/"
 headers={'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7',} 
 
 # Importing company prefix list
-with open("D:/Desktop/Code/Cobalt Blue/prefix_list1.txt") as f:
+with open("D:/Desktop/Code/Cobalt Blue/prefix_list.txt") as f:
 	prefix_list = f.readlines()
 	prefix_list = [x.strip() for x in prefix_list]
 
@@ -65,7 +70,7 @@ counter = 0
 
 # Main loop - looping through available urls to crawl posts.
 while len(url_list) != len(crawled_urls):
-	for url in url_list:
+	for url in url_list[6000:]:
 		counter += 1
 		print(counter)
 		print("Connecting to: " + str(url))
@@ -98,22 +103,24 @@ while len(url_list) != len(crawled_urls):
 					wanted_links.append(wanted)
 					crawled_list.append(wanted)
 				else:
-					turn_page = False
 					print("URL already crawled!")
-						
+					
+		if 	len(wanted_links) == 0:
+			turn_page = False
+			print("No more wanted links! ")
 		# Adding next page to url_list if it hasnt been crawled yet.
 		if turn_page:
 			page_count += 1
 			if url.endswith(('page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7', 'page-8', 'page-9')):
 				url = url[:-7]
-				url_list.append(url + "/page-" + str(page_count))
+				#url_list.append(url + "/page-" + str(page_count))
 				print("Added new URL to URL list")
 			elif url.endswith('page-10'):
 				print()
 				print("End of the line..")
 				pass	
 			else:	
-				url_list.append(url + "/page-" + str(page_count))
+				#url_list.append(url + "/page-" + str(page_count))
 				print("Added new URL to URL list")
 		
 		crawled_urls.append(url)
@@ -125,13 +132,14 @@ while len(url_list) != len(crawled_urls):
 		print()
 		
 # Saving wanted urls to database and optional text file.
-for item in wanted_links:
-	data_entry(item)
-	if text_files:
-		saveFile = open("D:/Desktop/Code/Cobalt Blue/wanted_urls.txt", 'a')
-		saveFile.write(str(item) + "\n")
-		saveFile.close()
-	wanted_links.remove(item)
+		for item in wanted_links:
+			data_entry(item)
+			if text_files:
+				saveFile = open("D:/Desktop/Code/Cobalt Blue/wanted_urls.txt", 'a')
+				saveFile.write(str(item) + "\n")
+				saveFile.close()
+		wanted_links = []
+		
 	
 c.close()
 conn.close()
