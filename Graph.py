@@ -4,7 +4,10 @@ import matplotlib.dates as mdates
 import datetime
 
 '''
-
+This is a simple tool i made to create a plot graph with the data from the database. You can
+manually enter the prefix's of the companys you want to look at in the prefix_list and it 
+will use all the data it can in the database corresponding to that prefix. This tool is used
+to determine the sentiment score and volume over a chosen period of time.
 '''
 # Set the period of time you want to analyse - in days
 time_period = 10
@@ -29,7 +32,7 @@ def select_scraped_data(prefix):
 	return data
 
 # Set companys to graph by prefix eg COB
-prefix_list = ['ABU']
+prefix_list = ['AJX']
 
 # Loop through company prefix
 for prefix in prefix_list:
