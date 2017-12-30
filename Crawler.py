@@ -6,7 +6,12 @@ from queue import Queue
 from threading import Thread
 import threading
 import time
-
+'''
+This is the web crawler used to find the wanted urls on the hotcopper website. The crawler
+searches by company prefix, and automatically adds the next page of the forum to the url list
+if they havent already been crawled before. Crawled entries are imported at the start, and
+wanted urls will then be saved to a database, with the option of text file backups.
+'''
 # Initiating timer for crawl
 start_time = time.time()
 # Connecting to database	
