@@ -42,7 +42,6 @@ crawled_urls = []
 def main_func(i, q):
 	page_count = 1
 	turn_page = True
-	already_wanted = wanted_links
 	# Main loop - looping through available urls to crawl posts.
 	while len(url_list) != len(crawled_urls):
 		# Getting url from queue
@@ -80,6 +79,7 @@ def main_func(i, q):
 				else:
 					turn_page = False
 					print("URL already crawled!")
+					
 		# Adding additional urls to crawl if turn_page hasn't been triggered by already crawled urls.			
 		if turn_page:
 			page_count += 1
