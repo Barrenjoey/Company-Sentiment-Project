@@ -80,11 +80,7 @@ def main_func(i, q):
 				else:
 					turn_page = False
 					print("URL already crawled!")
-					
-		# if wanted_links == already_wanted:
-			# turn_page = False
-			# print("No more wanted links! ")
-		# Adding next page to url_list if it hasnt been crawled yet.
+		# Adding additional urls to crawl if turn_page hasn't been triggered by already crawled urls.			
 		if turn_page:
 			page_count += 1
 			if url.endswith(('page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7', 'page-8', 'page-9')):
@@ -111,7 +107,7 @@ def main_func(i, q):
 # Create table if it doesnt exist
 create_table()
 
-# Starting URL and headers for access
+# Starting URL and headers for url access
 start_url = "https://hotcopper.com.au/asx/"
 headers={'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7',} 
 
@@ -135,7 +131,7 @@ if text_files:
 		crawled_list = [x.strip() for x in crawled_list] 
 		crawled_list = list(set(crawled_list))	
 	except Exception as e:
-		print('IMPORTING CRAWLED URLS ERROR! ' + str(e))
+		print('IMPORTING CRAWLED URLS ERROR! ' + str(e))		
 try:
 	temp_list = select_existing_url()
 	for existing in temp_list:
