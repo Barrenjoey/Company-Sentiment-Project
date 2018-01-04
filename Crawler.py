@@ -10,7 +10,8 @@ import time
 This is the web crawler used to find the wanted urls on the hotcopper website. The crawler
 searches by company prefix, and automatically adds the next page of the forum to the url list
 if they havent already been crawled before. Crawled entries are imported at the start, and
-wanted urls will then be saved to a database, with the option of text file backups.
+wanted urls will then be saved to a database, with the option of text file backups. The crawler
+is threaded to access pages, with 1 data insert at the end for faster and optimal performance.
 '''
 # Initiating timer for crawl
 start_time = time.time()
@@ -30,22 +31,22 @@ def select_existing_url():
 	c.execute("SELECT url FROM Scraped_data")
 	existing_urls = c.fetchall()
 	return existing_urls
-	
+
+# Declaring the 2 main variables
 global wanted_links
 wanted_links = []
 global crawled_urls
 crawled_urls = []
+
 # Main function for threading.
 def main_func(i, q):
-	
 	page_count = 1
 	turn_page = True
-
+	already_wanted = wanted_links
 	# Main loop - looping through available urls to crawl posts.
 	while len(url_list) != len(crawled_urls):
+		# Getting url from queue
 		url = q.get()
-		#counter += 1
-		#print(counter)
 		print("Connecting to: " + str(url))
 		
 		# Checking whether its not the first page of the forum. Adjusting page count if its not.
@@ -77,17 +78,18 @@ def main_func(i, q):
 					wanted = wanted,
 					wanted_links.append(wanted)
 				else:
+					turn_page = False
 					print("URL already crawled!")
 					
-		if 	len(wanted_links) == 0:
-			turn_page = False
-			print("No more wanted links! ")
+		# if wanted_links == already_wanted:
+			# turn_page = False
+			# print("No more wanted links! ")
 		# Adding next page to url_list if it hasnt been crawled yet.
 		if turn_page:
 			page_count += 1
 			if url.endswith(('page-2', 'page-3', 'page-4', 'page-5', 'page-6', 'page-7', 'page-8', 'page-9')):
-				url = url[:-7]
-				url_list.append(url + "/page-" + str(page_count))
+				temp_url = url[:-7]
+				url_list.append(temp_url + "/page-" + str(page_count))
 				print("Added new URL to URL list")
 			elif url.endswith('page-10'):
 				print()
@@ -106,11 +108,10 @@ def main_func(i, q):
 		print()
 		q.task_done()
 		
-#Create table if it doesnt exist
+# Create table if it doesnt exist
 create_table()
 
-data_lock = threading.Lock()
-#Starting URL and headers for access
+# Starting URL and headers for access
 start_url = "https://hotcopper.com.au/asx/"
 headers={'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.7) Gecko/2009021910 Firefox/3.0.7',} 
 
@@ -136,8 +137,8 @@ if text_files:
 	except Exception as e:
 		print('IMPORTING CRAWLED URLS ERROR! ' + str(e))
 try:
-	test_list = select_existing_url()
-	for existing in test_list:
+	temp_list = select_existing_url()
+	for existing in temp_list:
 		crawled_list.append(existing[0])
 except Exception as e:
 	print('IMPORTING CRAWLED URLS ERROR! ' + str(e))
@@ -152,15 +153,18 @@ for i in range(num_threads):
 	worker.setDaemon(True)
 	worker.start()
 	
-	
+# Putting the urls in the queue while running until no urls are left to crawl.
 while len(url_list) != len(crawled_urls):
 	for url in url_list:
 		if url not in crawled_urls:
 			q.put(url)
 	q.join()
-#if len(url_list) != len(crawled_urls):
 
-data_entry(wanted_links)
+# Data entry for wanted links, 1 insert for whole list.
+try:
+	data_entry(wanted_links)
+except Exception as e:
+	print("Data entry error: " + str(e))
 
 # Prints out text backup doccument if text_files is set to True.
 if text_files:
@@ -176,4 +180,4 @@ conn.close()
 # Crawl time 
 finish_time = time.time()
 total_time = finish_time - start_time
-print("Crawl took: " + str(total_time))
+print("Crawl time: " + str(total_time))
