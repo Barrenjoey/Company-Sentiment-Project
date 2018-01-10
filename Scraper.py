@@ -16,7 +16,10 @@ from threading import Thread
 from queue import Queue
 
 # SET the amount of urls to crawl eg 5000
-scrape_amount = 2000
+scrape_amount = 5000
+
+# SET number of threads to use. Best results with 20-30.
+num_threads = 30
 
 # Initiating timer for crawl
 start_time = time.time()
@@ -47,17 +50,41 @@ c.close()
 conn.close()
 
 # Declaring main list for database update
-global update_list
+counter = 0
+#global update_list
 update_list = []
 global delete_list
 delete_list = []
+data_lock = threading.Lock()
 def main_func(i, q):
 	while len(update_list) != scrape_amount:
 		# Getting url from queue
 		url = q.get()
 		# If data entry signal from queue it updates the database using this thread.
 		if url == "data entry":
+			conn = sqlite3.connect('Cobalt_Blue.db', timeout=10)
+			c = conn.cursor()
+			data_list = update_list
+			try:
+				with data_lock:
+					data_entry(data_list, c, conn)
+			except Exception as e:	
+				print("!!!! Error - Data entry!!! " + str(e))
+				print()
+			c.close()
+			conn.close()
+			global counter
+			counter += len(data_list)
+			print()
+			print("Added " + str(len(data_list)) + " urls to database!")
+			print("Scraped:" + str(counter))
+			print()
+			# Removing added data from update list to prevent repeated updates.
+			for y in range(len(data_list)):
+				update_list.pop(0)
 
+			q.task_done()
+			continue
 		#print("Connecting to: " + str(url))
 		
 		# Attempting to access web page
@@ -126,7 +153,7 @@ def main_func(i, q):
 		if prefix:
 			try:
 				update_tup = (prefix, sentiment, post_date, price, date, url)
-				print(update_tup)
+				#print(update_tup)
 				update_list.append(update_tup)
 			except:
 				print("Error appending to update list, not updating! ")
@@ -153,7 +180,6 @@ headers={'User-Agent':'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.9.0.
 
 # Setting up queue for threading.
 q = Queue()
-num_threads = 30
 
 # Setting threaded workers to point at main function.
 for i in range(num_threads):
@@ -162,14 +188,16 @@ for i in range(num_threads):
 	worker.start()		
 
 # Setting threaded data entry interval from scrape amount.
-data_interval = round(scrape_amount / 7)
+data_interval = round(scrape_amount / 10)
 print("Data Entry Interval: " + str(data_interval))
 
 # Putting the desired urls into the queue for scraping. If data interval triggered it adds a data entry signal into the queue.
 for count, url in enumerate(scrape_list[0:scrape_amount], start=1):
-	q.put(url[0])
-	if scrape_amount >= 200 and (count/data_interval) in range(data_interval):
-		q.put("data entry")
+	if count % data_interval == 0 and not data_lock.locked():
+		with data_lock:
+			q.put("data entry")
+	else:
+		q.put(url[0])
 q.join()
 
 # Data entry for the remaining list.
