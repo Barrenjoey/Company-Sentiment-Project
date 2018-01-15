@@ -12,16 +12,10 @@ to determine the sentiment score and volume over a chosen period of time.
 # Set the period of time you want to analyse - in days
 time_period = 30
 
-# Set wanted ratio and volume for alert
-buy_ratio = 0.8
-volume_strength = 0.2
-
 # Dates
 date = datetime.datetime.today()
 #date = date - datetime.timedelta(days=time_period)
 past_date = date - datetime.timedelta(days=time_period)
-# print(date)
-# print(past_date)
 
 conn = sqlite3.connect('Cobalt_Blue.db')
 c = conn.cursor()
@@ -32,10 +26,11 @@ def select_scraped_data(prefix):
 	return data
 
 # Set companys to graph by prefix eg COB
-prefix_list = ['ABU']
+prefix_list = ['BD1']
 
 # Loop through company prefix
 graph = True
+previous_item = ""
 for prefix in prefix_list:
 	try:
 		print("Analysing: " + prefix)
@@ -64,8 +59,6 @@ for prefix in prefix_list:
 		volume, sentiment = 0, 0
 		buy, sell, hold = 0, 0, 0
 		for item in clean_data:
-			print(item)
-			x.append(item[0])
 			volume += 1
 			if item[1] == 'Buy':
 				buy += 1
@@ -79,8 +72,12 @@ for prefix in prefix_list:
 					sentiment -= 0.5
 				elif sentiment < 1:
 					sentiment += 0.5
-			y.append(sentiment)
-			
+		# Sorting dates to plot only end of day figure and then appending to coords.
+			if item[0] > previous_item:
+				x.append(item[0])
+				y.append(sentiment)
+				previous_item = item[0]
+
 		# Buy/sell ratio
 		ratio = (buy - sell) / (buy + sell + hold)
 		
@@ -110,7 +107,8 @@ if graph:
 
 	# Converting back to datetime to graph
 	x = [datetime.datetime.strptime(d,'%d-%m-%Y').date() for d in x]
-
+	print(x)
+	print(y)
 	# Plotting coords
 	fig, ax = plt.subplots()
 	ax.plot(x, y, label='Sentiment')
@@ -120,7 +118,7 @@ if graph:
 	ax.xaxis.set_major_formatter(fmt)
 
 	# Graphing info
-	plt.xlabel('Time')
+	plt.xlabel('Time (Days)')
 	plt.ylabel('Sentiment Score')
 	plt.title(str(prefix) + ' Sentiment')
 	plt.legend()
