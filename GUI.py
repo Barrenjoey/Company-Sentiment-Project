@@ -277,3 +277,44 @@ class GraphPage(tk.Frame):
 		c.close()
 		conn.close()
 		return data
+
+# Alerts page	
+class AlertPage(tk.Frame):
+
+	def __init__(self, parent, controller):
+		# Initializing frames for the page.
+		mainFrame = tk.Frame.__init__(self, parent)
+		buttonFrame = tk.Frame(self)
+
+		# Creating the title label
+		self.titleImage = tk.PhotoImage(file="image/Title.png")
+		title = tk.Label(self, image=self.titleImage)
+
+		# Packing in title
+		title.pack()
+
+		# Packing in button frame
+		buttonFrame.pack(in_=mainFrame)
+
+		# Buttons to navigate between pages.
+		self.image1 = tk.PhotoImage(file="image/update.png")
+		self.image2 = tk.PhotoImage(file="image/Graph.png")
+		self.image3 = tk.PhotoImage(file="image/Alert.png")
+		button1 = tk.Button(self, text="Update", image=self.image1, width=120, height=120,
+							compound='top', command=lambda: controller.show_frame(UpdatePage))
+		button1.grid(in_=buttonFrame, row=2, column=0, padx=5, pady=10)
+		button2 = tk.Button(self, text="Graphs", image=self.image2, width=120, height=120,
+							compound='top', command=lambda: controller.show_frame(GraphPage))
+		button2.grid(in_=buttonFrame, row=2, column=1, padx=5, pady=10)
+		button3 = tk.Button(self, text="Alerts", image=self.image3, width=120, height=120,
+							compound='top', command=lambda: controller.show_frame(AlertPage))
+		button3.grid(in_=buttonFrame, row=2, column=2, padx=5, pady=10)
+
+def start_gui():
+	# Running the gui.
+	app = CobaltBlue()
+	app.mainloop()
+
+if __name__ == '__main__':
+	p = multiprocessing.Process(target=start_gui)
+	p.start()
