@@ -7,19 +7,25 @@ search can be altered to a set time period, however the tools main use is for
 short time periods such as 1-10 days.
 '''
 # Set the period of time you want to analyse - in days
-time_period = 8
+time_period = 10
 
 # Set wanted ratio and volume for alert. Buy strength in %
 buy_strength = 80
 volume_strength_low = 4
-volume_strength_high= 30
+volume_strength_high = 30
+
+# Set price difference condition for alert in % (percent of current price below monthly average)
+priceDifference = 1
 
 # Dates
 date = datetime.datetime.today()
-#date = date - datetime.timedelta(days=time_period)
+date = date - datetime.timedelta(days=7)
 past_date = date - datetime.timedelta(days=time_period)
 past_month = date - datetime.timedelta(days=30)
 past_monthStr = past_month.strftime('%Y-%m-%d')
+print("Date: " + str(date))
+print("Past Date: " + str(past_date))
+print("Past Month: " + str(past_month))
 print(past_monthStr)
 conn = sqlite3.connect('Cobalt_Blue.db')
 c = conn.cursor()
@@ -40,7 +46,7 @@ with open("D:/Desktop/Code/Cobalt Blue/prefix_list.txt") as f:
 	prefix_list = [x.strip() for x in prefix_list]
 
 # Use this to search for selected companys, mute to scan all companies.	
-prefix_list = ['COB']
+prefix_list = ['VLA']
 
 previous = False
 if previous:
@@ -52,35 +58,14 @@ if previous:
 alerts = {}
 newAlerts = {}
 counter = 0
+gainersList = []
 for prefix in prefix_list[0:]:
 	try:
 		counter += 1
 		print("Scanned: " + str(counter))
 		print("Analysing: " + prefix + " for past " + str(time_period) + " days")
+		# Importing sentiment data
 		data = select_scraped_data(prefix)
-		priceData = select_price_data(prefix)
-		print(len(priceData))
-		print(priceData)
-		priceData.sort()
-		print()
-		print(priceData)
-		## Sorting done.
-		## Work out price average over month
-		monthPrices = []
-		for val in priceData:
-			if val[0] > past_monthStr:
-				monthPrices.append(val)
-		print(monthPrices)
-		monthPriceAverage = 0
-		for price in monthPrices:
-			monthPriceAverage += price[1]
-		monthPriceAverage = monthPriceAverage/len(monthPrices)
-		print(len(monthPrices))
-		print(monthPriceAverage)
-
-			
-		## Alert if current price is 7-10%+ below average price?
-
 		# Converting to datestamp to sort by date and then sorting chronologically.
 		date_data = []
 		clean_data = []
@@ -88,8 +73,62 @@ for prefix in prefix_list[0:]:
 		for item in data:
 			item = list(item)
 			item[0] = datetime.datetime.strptime(item[0], "%d/%m/%y")
-			date_data.append(item)	
+			date_data.append(item)
 		date_data.sort()
+		'''
+		Pricing
+		'''
+		# Importing price data
+		priceData = select_price_data(prefix)
+		# Sorting data
+		priceData.sort()
+		# Getting prices for the past month
+		monthPrices = []
+		for val in priceData:
+			if val[0] > past_monthStr:
+				monthPrices.append(val)
+		# Working out the average price for the past month
+		monthPriceAverage = 0
+		for price in monthPrices:
+			monthPriceAverage += price[1]
+		monthPriceAverage = round(monthPriceAverage/len(monthPrices), 3)
+		# Getting current price from last entry
+		currentPrice = monthPrices[-1]
+		currentPrice = currentPrice[1]
+		print(currentPrice)
+		# Converting price difference to string to convert to float
+		if priceDifference >= 10:
+			priceDifference2 = "0." + str(priceDifference)
+		elif priceDifference < 10:
+			priceDifference2 = "0.0" + str(priceDifference)
+		priceDifference2 = float(priceDifference2)
+		# Figuring out the desired price difference from the chosen percentage at start of script.
+		wantedPriceDiff = (priceDifference2 * monthPriceAverage)
+		wantedPriceDiff = round(monthPriceAverage - wantedPriceDiff, 3)
+		print(wantedPriceDiff)
+		####################################################################
+		# Top 3 gainers of the month
+		# Getting last months price to figure out gains/losses
+		lastMonthsPrice = monthPrices[0]
+		lastMonthsPrice = lastMonthsPrice[1]
+		#print(lastMonthsPrice)
+		monthlyGain = ((currentPrice - lastMonthsPrice)/lastMonthsPrice)*100
+		monthlyGain = round(monthlyGain, 2)
+		#print(monthlyGain)
+		if monthlyGain > 500:
+			print("Possible dead stock")
+			continue
+		if monthlyGain > 0:
+			if len(gainersList) < 3:
+				gainersList.append([prefix, monthlyGain])
+			else:
+				for i, x in enumerate(gainersList):
+					if monthlyGain > x[1]:
+						del gainersList[i]
+						gainersList.append([prefix, monthlyGain])
+		print(gainersList)
+
+		#####################################################################
 		'''
 		Total historical data as averages. (vol/buy)
 		'''
@@ -185,10 +224,11 @@ for prefix in prefix_list[0:]:
 		#Add alert if conditions met
 		if ratio >= buy_strength:
 			if volume_strength_low < volume_ratio < volume_strength_high:
-				alerts[prefix] = [ratio, volume_ratio, month_ratio, month_volume]
-				if previous:
-					if prefix not in alreadyBought:
-						newAlerts[prefix] = [ratio, volume_ratio]
+				if currentPrice <= wantedPriceDiff:
+					alerts[prefix] = [ratio, volume_ratio, month_ratio, month_volume, monthPriceAverage, currentPrice]
+					if previous:
+						if prefix not in alreadyBought:
+							newAlerts[prefix] = [ratio, volume_ratio]
 		
 		print("Volume: " + str(volume))
 		print("Buy: " + str(buy))
@@ -196,17 +236,21 @@ for prefix in prefix_list[0:]:
 		print("Hold: " + str(hold))
 		print("None: " + str(none))
 		print("Buy Strength: " + str(ratio) + "%")
-		print("Volume Strength: " + str(volume_ratio) + " posts per day")	
+		print("Volume Strength: " + str(round(volume_ratio, 1)) + " posts per day")
 		print("Monthly Buy Average: " + str(month_ratio) + "%")
-		print("Monhly Volume Average " + str(month_volume) + " posts per day")
-		# print("Current Price: $" + str(currentPrice))
-		print("Month Price Average: $" + str(monthPriceAverage))
+		print("Monthly Volume Average " + str(month_volume) + " posts per day")
+		print("Current Price: $" + str(currentPrice))
+		print("Monthly Price Average: $" + str(monthPriceAverage))
+		print("Monthly Gain: " + str(monthlyGain) + '%')
 		print()
 		ratio = 0
 		
 	except Exception as e:
 		print("Main script error! - " + str(e))
-		
+		print()
+
+print("Top Gainers:")
+print(gainersList)
 # Displaying alerts
 print()
 print("ALERTS: " + str(len(alerts)))
@@ -217,11 +261,12 @@ for alert in alerts:
 	print("Buy Strength: " + str(round(info[0], 2)) + "%")
 	print("Volume Strength: " + str(round(info[1], 2)) + " posts per day")
 	print("Monthly Buy Average: " + str(round(info[2], 2)) + "%")
-	print("Monhly Volume Average " + str(round(info[3], 2)) + " posts per day")
-	#print("Current Price: $" + str(currentPrice))
-	print("Month Price Average: $" + str(monthPriceAverage))
+	print("Monthly Volume Average " + str(round(info[3], 2)) + " posts per day")
+	print("Current Price: $" + str(round(info[5], 2)))
+	print("Monthly Price Average: $" + str(round(info[4], 2)))
 	print()
 print()
+'''
 print("NEW ALERTS: " + str(len(newAlerts)))
 for alert in newAlerts:
 	print(alert)
@@ -230,7 +275,7 @@ for alert in newAlerts:
 	print("Volume Strength: " + str(round(info[1], 2)) + " posts per day")
 	#print("Buy Average: " + str(round()))
 	print()
-	
+'''
 c.close()
 conn.close()
 
